@@ -3,3 +3,4 @@
 *.tfvars
 *.csv
 .terraform/*
+private_key/*

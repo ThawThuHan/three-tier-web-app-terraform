@@ -22,3 +22,31 @@ variable "availability_zones" {
   type    = list(string)
   default = ["us-east-1a", "us-east-1b"]
 }
+
+variable "public_alb_ingress_ports" {
+  type = list(number)
+  default = [ 80, 443 ]
+}
+
+variable "fronted_ingress_ports" {
+  type = list(number)
+  default = [ 80, 443 ]
+}
+
+variable "private_alb_ingress_ports" {
+  type = list(number)
+  default = [ 80, 443 ]
+}
+
+variable "backend_ingress_ports" {
+  type = list(number)
+  default = [ 80, 443 ]
+}
+
+# variable "frontend_public_key" {
+#   type = string
+# }
+
+# variable "backend_public_key" {
+#   type = string
+# }
