@@ -15,7 +15,7 @@ The key features of Terraform are:
 
 - **Infrastructure as Code**: Infrastructure is described using a high-level configuration syntax. This allows a blueprint of your datacenter to be versioned and treated as you would any other code. Additionally, infrastructure can be shared and re-used.
 
-- **Execution Plans**: Terraform has a "planning" step where it generates an execution plan. The execution plan shows what Terraform will do when you call apply. This lets you avoid any surprises when Terraform manipulates infrastructure.
+- **Execution Plans**: Terraform has a "planning" step where it generates an execution plan. The execution plan shows what Terraform will do when you call to apply. This lets you avoid any surprises when Terraform manipulates infrastructure.
 
 - **Resource Graph**: Terraform builds a graph of all your resources, and parallelizes the creation and modification of any non-dependent resources. Because of this, Terraform builds infrastructure as efficiently as possible, and operators get insight into dependencies in their infrastructure.
 
@@ -25,9 +25,11 @@ For more information, refer to the [What is Terraform?](https://www.terraform.io
 
 ## About My Project
 
-This project provides a Terraform configuration for building a three-tier web app infrastructure on AWS. The infrastructure includes the following components:
+This project provides a Terraform configuration for building a three-tier web app infrastructure on AWS. The infrastructure includes components as per the following diagram:
 
 - A VPC with public and private subnets
 - An EC2 instance for the web tier
 - An RDS instance for the database tier
 - An ALB to distribute traffic to the web tier
+<img alt="AWS Three Tier Web App" src="https://github.com/ThawThuHan/three-tier-web-app-terraform/assets/42668854/e6a00a7a-1083-41b8-bacc-a22b6f13c7f3" width="400px">
+
