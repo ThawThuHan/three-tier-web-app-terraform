@@ -43,10 +43,12 @@ variable "backend_ingress_ports" {
   default = [ 80, 443 ]
 }
 
-# variable "frontend_public_key" {
-#   type = string
-# }
+variable "frontend_public_key" {
+  type = string
+  default = "./public-key/frontend.pub"
+}
 
-# variable "backend_public_key" {
-#   type = string
-# }
+variable "backend_public_key" {
+  type = string
+  default = "./public-key/frontend.pub"
+}

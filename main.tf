@@ -192,13 +192,13 @@ data "aws_ami" "amazon-latest-ami" {
 #Creating AWS Key Pair for frontend
 resource "aws_key_pair" "frontend-keypair" {
   key_name = "frontend-keypair"
-  public_key = file("./frontend.pub")
+  public_key = file("${var.frontend_public_key}")
 }
 
 #Creating AWS Key Pair for backend
 resource "aws_key_pair" "backend-keypair" {
   key_name = "frontend-keypair"
-  public_key = file("./backend.pub")
+  public_key = file("${var.backend_public_key}")
 }
 
 # Creating EC2 Launch Template for ASG
@@ -206,7 +206,7 @@ resource "aws_launch_template" "frontend" {
   name_prefix = "frontend-launch-template"
   image_id = data.aws_ami.amazon-latest-ami.id
   instance_type = "t2.micro"
-  user_data = file("./user-data.sh")
+  user_data = file("./script-file/user-data.sh")
   security_group_names = [ aws_security_group.frontend-sg.name ]
   key_name = aws_key_pair.frontend-keypair.key_name
 }
