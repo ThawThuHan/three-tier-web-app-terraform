@@ -8,6 +8,11 @@ variable "vpc_cidr_block" {
   default = "10.10.0.0/16"
 }
 
+variable "availability_zones" {
+  type    = list(string)
+  default = ["us-east-1a", "us-east-1b"]
+}
+
 variable "public_subnets" {
   type    = list(string)
   default = ["10.10.1.0/24", "10.10.2.0/24"]
@@ -16,11 +21,6 @@ variable "public_subnets" {
 variable "private_subnets" {
   type    = list(string)
   default = ["10.10.3.0/24", "10.10.4.0/24", "10.10.5.0/24", "10.10.6.0/24"]
-}
-
-variable "availability_zones" {
-  type    = list(string)
-  default = ["us-east-1a", "us-east-1b"]
 }
 
 variable "public_alb_ingress_ports" {
@@ -45,10 +45,8 @@ variable "backend_ingress_ports" {
 
 variable "frontend_public_key" {
   type = string
-  default = "./public-key/frontend.pub"
 }
 
 variable "backend_public_key" {
   type = string
-  default = "./public-key/frontend.pub"
 }

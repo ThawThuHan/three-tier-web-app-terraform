@@ -24,7 +24,7 @@ resource "aws_subnet" "main-privates" {
   availability_zone = element(var.availability_zones, count.index)
 
   tags = {
-    Name = "private-subnet-${element(var.availability_zones, count.index)}-${count.index}"
+    Name = "private-subnet-${count.index < floor((length(var.private_subnets) / 2)) ? "frontend" : "backend"}-${element(var.availability_zones, count.index)}"
   }
 }
 
@@ -124,6 +124,14 @@ resource "aws_security_group" "frontend-sg" {
       security_groups = [ aws_security_group.public-alb-sg.id ]
     }
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
 
 #Creating Security Group for Private ALB
@@ -158,6 +166,14 @@ resource "aws_security_group" "backend-sg" {
       security_groups = [ aws_security_group.private-alb-sg.id ]
     }
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
 
 data "aws_ami" "amazon-latest-ami" {
@@ -189,6 +205,8 @@ data "aws_ami" "amazon-latest-ami" {
   }
 }
 
+
+
 #Creating AWS Key Pair for frontend
 resource "aws_key_pair" "frontend-keypair" {
   key_name = "frontend-keypair"
@@ -197,28 +215,115 @@ resource "aws_key_pair" "frontend-keypair" {
 
 #Creating AWS Key Pair for backend
 resource "aws_key_pair" "backend-keypair" {
-  key_name = "frontend-keypair"
+  key_name = "backend-keypair"
   public_key = file("${var.backend_public_key}")
 }
 
-# Creating EC2 Launch Template for ASG
+# Creating EC2 Launch Template for frontend ASG
 resource "aws_launch_template" "frontend" {
   name_prefix = "frontend-launch-template"
   image_id = data.aws_ami.amazon-latest-ami.id
   instance_type = "t2.micro"
-  user_data = file("./script-file/user-data.sh")
-  security_group_names = [ aws_security_group.frontend-sg.name ]
+  user_data = "${base64encode(file("./script-file/frontend.sh"))}"
+  vpc_security_group_ids = [ aws_security_group.frontend-sg.id ]
   key_name = aws_key_pair.frontend-keypair.key_name
 }
 
-#Creating ASG
+#Creating Frontend ASG
 resource "aws_autoscaling_group" "frontend-asg" {
   name = "frontend-asg"
   max_size = 3
   min_size = 1
   desired_capacity = 2
+  vpc_zone_identifier = slice(aws_subnet.main-privates[*].id, 0, floor((length(var.private_subnets) / 2)))
   launch_template {
     id = aws_launch_template.frontend.id
-    version = "$latest"
+    version = "$Latest"
+  }
+  target_group_arns = [ aws_lb_target_group.frontend-tg.arn ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Creating EC2 Launch Template for backend ASG
+resource "aws_launch_template" "backend" {
+  name_prefix = "backend-launch-template"
+  image_id = data.aws_ami.amazon-latest-ami.id
+  instance_type = "t2.micro"
+  user_data = "${base64encode(file("./script-file/backend.sh"))}"
+  vpc_security_group_ids = [ aws_security_group.backend-sg.id ]
+  key_name = aws_key_pair.backend-keypair.key_name
+}
+
+#Creating backend ASG
+resource "aws_autoscaling_group" "backend-asg" {
+  name = "backend-asg"
+  max_size = 3
+  min_size = 1
+  desired_capacity = 2
+  vpc_zone_identifier = slice(aws_subnet.main-privates[*].id, floor((length(var.private_subnets) / 2)), length(var.private_subnets))
+  launch_template {
+    id = aws_launch_template.backend.id
+    version = "$Latest"
+  }
+  target_group_arns = [ aws_lb_target_group.backend-tg.arn ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Frontend ALB
+resource "aws_lb" "frontend-alb" {
+  name = "frontend-alb"
+  load_balancer_type = "application"
+  security_groups = [ aws_security_group.public-alb-sg.id ]
+  subnets = [ for subnet in aws_subnet.main-publics : subnet.id ]
+}
+
+resource "aws_lb_target_group" "frontend-tg" {
+  name     = "frontend-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main.id
+}
+
+resource "aws_lb_listener" "frontend-listener" {
+  load_balancer_arn = aws_lb.frontend-alb.arn
+  port = 80
+  protocol = "HTTP"
+
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.frontend-tg.arn
+  }
+}
+
+# Backend ALB
+resource "aws_lb" "backend-alb" {
+  name = "backend-alb"
+  internal = true
+  load_balancer_type = "application"
+  security_groups = [ aws_security_group.private-alb-sg.id ]
+  subnets = [ for subnet in aws_subnet.main-privates : subnet.id if strcontains(subnet.tags.Name, "frontend") ]
+}
+
+resource "aws_lb_target_group" "backend-tg" {
+  name     = "backend-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main.id
+}
+
+resource "aws_lb_listener" "backend-listener" {
+  load_balancer_arn = aws_lb.backend-alb.arn
+  port = 80
+  protocol = "HTTP"
+
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.backend-tg.arn
   }
 }
