@@ -30,7 +30,7 @@ variable "public_alb_ingress_ports" {
 
 variable "fronted_ingress_ports" {
   type = list(number)
-  default = [ 80, 443 ]
+  default = [ 80, 443, 22 ]
 }
 
 variable "private_alb_ingress_ports" {
@@ -40,7 +40,7 @@ variable "private_alb_ingress_ports" {
 
 variable "backend_ingress_ports" {
   type = list(number)
-  default = [ 80, 443 ]
+  default = [ 80, 443, 22 ]
 }
 
 variable "frontend_public_key" {

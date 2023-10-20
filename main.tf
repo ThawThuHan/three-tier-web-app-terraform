@@ -107,6 +107,14 @@ resource "aws_security_group" "public-alb-sg" {
       cidr_blocks = [ "0.0.0.0/0" ]
     }
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
 
 #Creating Security Group for frontend ASG
@@ -149,6 +157,14 @@ resource "aws_security_group" "private-alb-sg" {
       security_groups = [ aws_security_group.frontend-sg.id ]
     }
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
 
 #Creating Security Group for backend ASG
@@ -166,6 +182,28 @@ resource "aws_security_group" "backend-sg" {
       security_groups = [ aws_security_group.private-alb-sg.id ]
     }
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_security_group" "bastion-host-sg" {
+  name = "bastion-host-sg"
+  description = "allow SSH from public"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+      from_port = 22
+      to_port = 22
+      protocol = "tcp"
+      cidr_blocks = [ "0.0.0.0/0" ]
+      ipv6_cidr_blocks = [ "::/0" ]
+    }
 
   egress {
     from_port        = 0
@@ -204,8 +242,6 @@ data "aws_ami" "amazon-latest-ami" {
     values = [ "x86_64" ]
   }
 }
-
-
 
 #Creating AWS Key Pair for frontend
 resource "aws_key_pair" "frontend-keypair" {
@@ -326,4 +362,14 @@ resource "aws_lb_listener" "backend-listener" {
     type = "forward"
     target_group_arn = aws_lb_target_group.backend-tg.arn
   }
+}
+
+# Bastion-host
+
+resource "aws_instance" "bastion-host" {
+  ami = data.aws_ami.amazon-latest-ami.id
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [ aws_security_group.bastion-host-sg.id ]
+  key_name = aws_key_pair.frontend-keypair.key_name
+  subnet_id = aws_subnet.main-publics[0].id
 }
