@@ -20,7 +20,7 @@ variable "public_subnets" {
 
 variable "private_subnets" {
   type    = list(string)
-  default = ["10.10.3.0/24", "10.10.4.0/24", "10.10.5.0/24", "10.10.6.0/24"]
+  default = ["10.10.3.0/24", "10.10.4.0/24", "10.10.5.0/24", "10.10.6.0/24", "10.10.7.0/24", "10.10.8.0/24"]
 }
 
 variable "public_alb_ingress_ports" {
@@ -43,10 +43,47 @@ variable "backend_ingress_ports" {
   default = [ 80, 443, 22 ]
 }
 
+variable "db_ingress_ports" {
+  type = list(number)
+  default = [ 3306 ]
+}
+
 variable "frontend_public_key" {
   type = string
 }
 
 variable "backend_public_key" {
   type = string
+}
+
+variable "db_name" {
+  type = string
+}
+
+variable "db_username" {
+  type = string
+}
+
+variable "db_password" {
+  type = string
+}
+
+variable "db_instance_class" {
+  type = string
+  default = "db.t2.micro"
+}
+
+variable "db_engine" {
+  type = string
+  default = "mysql"
+}
+
+variable "db_storage" {
+  type = number
+  default = 20
+}
+
+variable "max_db_storage" {
+  type = number
+  default = 100
 }

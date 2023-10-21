@@ -16,6 +16,10 @@ resource "aws_internet_gateway" "main-igw" {
   }
 }
 
+locals {
+  double_length_az = length(var.availability_zones) * 2
+}
+
 #Creating Public and Private Subnet
 resource "aws_subnet" "main-privates" {
   count             = length(var.private_subnets)
@@ -24,7 +28,7 @@ resource "aws_subnet" "main-privates" {
   availability_zone = element(var.availability_zones, count.index)
 
   tags = {
-    Name = "private-subnet-${count.index < floor((length(var.private_subnets) / 2)) ? "frontend" : "backend"}-${element(var.availability_zones, count.index)}"
+    Name = "private-subnet-${count.index < length(var.availability_zones) ? "frontend" : ( count.index < local.double_length_az ? "backend" : "db" )}-${element(var.availability_zones, count.index)}"
   }
 }
 
@@ -192,6 +196,31 @@ resource "aws_security_group" "backend-sg" {
   }
 }
 
+#Creating Security Group for backend ASG
+resource "aws_security_group" "db-sg" {
+  name = "db-sg"
+  description = "allow DB port from backend-sg"
+  vpc_id = aws_vpc.main.id
+
+  dynamic "ingress" {
+    for_each = var.db_ingress_ports
+    content {
+      from_port = ingress.value
+      to_port = ingress.value
+      protocol = "tcp"
+      security_groups = [ aws_security_group.backend-sg.id ]
+    }
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
 resource "aws_security_group" "bastion-host-sg" {
   name = "bastion-host-sg"
   description = "allow SSH from public"
@@ -271,7 +300,7 @@ resource "aws_autoscaling_group" "frontend-asg" {
   max_size = 3
   min_size = 1
   desired_capacity = 2
-  vpc_zone_identifier = slice(aws_subnet.main-privates[*].id, 0, floor((length(var.private_subnets) / 2)))
+  vpc_zone_identifier = [ for subnet in aws_subnet.main-privates : subnet.id if strcontains(subnet.tags.Name, "frontend") ]
   launch_template {
     id = aws_launch_template.frontend.id
     version = "$Latest"
@@ -299,7 +328,7 @@ resource "aws_autoscaling_group" "backend-asg" {
   max_size = 3
   min_size = 1
   desired_capacity = 2
-  vpc_zone_identifier = slice(aws_subnet.main-privates[*].id, floor((length(var.private_subnets) / 2)), length(var.private_subnets))
+  vpc_zone_identifier = [ for subnet in aws_subnet.main-privates : subnet.id if strcontains(subnet.tags.Name, "backend") ]
   launch_template {
     id = aws_launch_template.backend.id
     version = "$Latest"
@@ -365,11 +394,31 @@ resource "aws_lb_listener" "backend-listener" {
 }
 
 # Bastion-host
-
 resource "aws_instance" "bastion-host" {
   ami = data.aws_ami.amazon-latest-ami.id
   instance_type = "t2.micro"
   vpc_security_group_ids = [ aws_security_group.bastion-host-sg.id ]
   key_name = aws_key_pair.frontend-keypair.key_name
   subnet_id = aws_subnet.main-publics[0].id
+}
+
+# Amazon RDS
+resource "aws_db_subnet_group" "db-subnet-group" {
+  name = "db-subnet"
+  subnet_ids = [ for subnet in aws_subnet.main-privates : subnet.id if strcontains(subnet.tags.Name, "db") ]
+}
+
+resource "aws_db_instance" "db" {
+  instance_class = var.db_instance_class
+  engine = var.db_engine
+  allocated_storage = var.db_storage
+  max_allocated_storage = var.max_db_storage
+  db_name = var.db_name
+  username = var.db_username
+  password = var.db_password
+  multi_az = true
+  vpc_security_group_ids = [ aws_security_group.db-sg.id ]
+  db_subnet_group_name = aws_db_subnet_group.db-subnet-group.name
+  publicly_accessible = false
+  skip_final_snapshot = true
 }
